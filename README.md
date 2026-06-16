@@ -1,0 +1,2 @@
+# nba-win-probability
+Recency-weighted statistical model for NBA win probabilities
