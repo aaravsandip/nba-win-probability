@@ -180,3 +180,5 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 data/*.csv
+!data/upcoming.csv
+.venv/
