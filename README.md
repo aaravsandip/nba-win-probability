@@ -60,7 +60,11 @@ gave the home team about 75%, the home team won 76.1% of the time (398 games).
 ![Calibration](results/calibration.png)
 
 ## What I learned
-[2-4 sentences in your own words: did recency help? did SoS help? where is the model weakest? what surprised you?]
+- Receny helps, but only moderately
+- Strength of schedule gave a small, consistent improvement
+- Home-court edge is smaller than its histroical reputation
+- The model beats "better record" by about 2 percent
+- Probabilites are well calibrated in the middle range
 
 ## Limitations
 - Ignores injuries, rest days, and trades, so it reacts to them only after they show up in results.
