@@ -7,7 +7,7 @@ A production-grade data engineering pipeline and predictive modeling engine buil
 
 ---
 
-## 🚀 1. Core Pipeline Logic: Concept-to-Code Mapping
+## 1. Core Pipeline Logic: Concept-to-Code Mapping
 
 The architecture is built cleanly upon academic statistical theories transformed into high-performance Python operations. The table below outlines how data theory translates directly to the code base:
 
@@ -21,11 +21,11 @@ The architecture is built cleanly upon academic statistical theories transformed
 
 ---
 
-## 📈 2. Empirical Validation Results & Hyperparameter Tuning
+## 2. Empirical Validation Results & Hyperparameter Tuning
 
 To establish true mathematical validity and prevent over-optimism or data leakage, the pipeline enforces a strict **chronological 80/20 train/test split**. The model builds its team profiles completely on historical timelines before evaluating accuracy on unobserved future contests.
 
-> 🧠 **Hyperparameter Custom Tuning Note:** During experimental cycles, I tweaked the recency decay factor to perfection. Moving the factor from the standard baseline of `0.85` up to a refined `0.92` dramatically expanded the model's predictive memory window. This allows the system to retain crucial structural context regarding a team's foundational talent level without overreacting to isolated, short-term noise. Coupled with reducing `HOME_ADVANTAGE` to a modern `2.5` scale and implementing `scikit-learn` parameter matching, the model achieved a massive performance leap.
+>  **Hyperparameter Custom Tuning Note:** During experimental cycles, I tweaked the recency decay factor to perfection. Moving the factor from the standard baseline of `0.85` up to a refined `0.92` dramatically expanded the model's predictive memory window. This allows the system to retain crucial structural context regarding a team's foundational talent level without overreacting to isolated, short-term noise. Coupled with reducing `HOME_ADVANTAGE` to a modern `2.5` scale and implementing `scikit-learn` parameter matching, the model achieved a massive performance leap.
 
 ### Chronological Back-Test Performance Spectrum (6,129 Held-Out Games)
 * **Random Selection Baseline:** Log-Loss: `0.6931` | Win Accuracy: `50.00%`
@@ -37,7 +37,7 @@ Probability distributions match real-world frequency outcomes. Following probabi
 
 ---
 
-## 🛠️ 3. Installation & Operational Deployment
+## 3. Installation & Operational Deployment
 
 ### Step 1: Environment Isolation
 Initialize your local environment containment shell to avoid global dependency cross-contamination:
