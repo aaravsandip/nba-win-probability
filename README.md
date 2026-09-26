@@ -1,47 +1,97 @@
 # NBA Win Probability Model
 
-**Author:** Sandi  
-**Dataset Source:** `data/TeamStatistics.csv` (146,560 raw historical records)
+A recency-weighted rating model that turns recent point margins into win probabilities for
+NBA games. It's evaluated with a walk-forward backtest (no future data ever leaks in) and
+tracked live, with every prediction committed to GitHub before tip-off, during the 2026-27 season.
 
-A production-grade data engineering pipeline and predictive modeling engine built to forecast NBA game outcomes. Moving beyond simple static win-loss records, this framework implements an exponentially decaying recency weight matrix to capture shifting team momentum, adjusts dynamically for Strength of Schedule (SoS), and utilizes machine learning calibration to output true, actionable win probabilities.
+**Key results (2024-25 and 2025-26 seasons, 2,622 games the model never saw during tuning):**
+- Picked the winner in **67.5%** of games, vs. 55.0% for "always pick the home team" and 65.3% for "pick the better record"
+- Log loss **0.606** vs. 0.688 for the home-team baseline and 0.693 for a coin flip
+- Live 2026-27 record: **[..]** (updated monthly)
 
----
+## Question
+Can a simple rating built from recent point margins predict NBA winners better than the
+rules a casual fan would use, and are its probabilities *honest*? When it says 70%, does
+the favorite actually win about 70% of the time?
 
-## 1. Core Pipeline Logic: Concept-to-Code Mapping
+## Data
+Kaggle: *Historical NBA Data and Player Box Scores* (TeamStatistics.csv), 2022-23 through 2025-26
+regular season and playoffs (5,248 games).
+Each game appears once per team in the raw file, so the loader keeps one row per game (the home
+team's side) and builds full team names so the Lakers and Clippers stay separate.
+The data isn't stored in this repo; download it into `data/`.
 
-The architecture is built cleanly upon academic statistical theories transformed into high-performance Python operations. The table below outlines how data theory translates directly to the code base:
+## Method
+1. **Team rating** = weighted average point margin, where a game from *w* weeks ago gets weight `decay^w`.
+   Recent games count more because rosters, injuries, and form change during a season.
+2. **Strength of schedule (optional):** each margin is adjusted by the opponent's rating, so a
+   close loss to a top team counts more than a close win over a weak one.
+3. **Win probability:** `P(home wins) = 1 / (1 + e^-(a * gap + b))`, where `gap` = home rating - away rating.
+   Logistic regression learns `a` (how much each point of rating gap matters) and `b` (home-court edge).
 
-| Analytical Concept | Code Element / Function | Mathematical Operational Mechanics |
-| :--- | :--- | :--- |
-| **Data Pre-processing & Structural Cleaning** | `load_and_clean_data()` | Drops records missing vital metrics. Resolves row perspective mismatches by mirroring `gameId` instances to map point margins dynamically against explicit opponents. Implements a performance data constraint window via `SEASON_START` to optimize dataframe execution speeds. |
-| **Outlier Mitigation** | IQR Outlier Rule (Strict $k = 3$) | Uses the statistical Interquartile Range formula: $[Q1 - 3 \times IQR, Q3 + 3 \times IQR]$ to screen point spreads. This deliberately strict multiplier purges extreme benched-starter garbage time blowouts while safely preserving genuine elite performance variance. |
-| **Recency-Weighted Team Performance** | `calculate_advanced_ratings()` | Computes an exponential decay sequence tracking team margin performance. Every rolling 7-day period that elapses reduces an older game's mathematical weight by a precise factor ($\alpha = 0.92$), placing structural emphasis on active "hot streaks." |
-| **Scheduling Discrepancy Adjustment** | Strength of Schedule (SoS) Pass | Adjusts a franchise's baseline point rating by computing the average raw rating of all opponents faced within the lookback window. Refines ratings to reward squads navigating brutal scheduling stretches. |
-| **Probability Squashing & Parameter Optimization** | `sklearn.linear_model.LogisticRegression` | Replaces rigid hand-tuned denominators with an empirical mathematical link function: $1 / (1 + e^{-\text{gap}/\text{scale}})$. Translates calculated efficiency point spreads into bounded, beautifully calibrated win percentages between $0\%$ and $100\%$. |
+## Why the test is honest
+- **Walk-forward:** to predict a game, the model only uses games played *before* that day.
+- **Separate tuning and test seasons:** decay, strength of schedule, `a`, and `b` are all chosen
+  using 2023-24 only. The reported results come from 2024-25 and 2025-26, which the model never saw while being tuned.
+- **Baselines:** the model is compared against simple rules, not just against random guessing.
+- **Live tracking:** 2026-27 predictions are committed before games start, so the timestamps prove they weren't made after the fact.
 
----
+## Results (test seasons 2024-25 and 2025-26, 2,622 games)
+| Method                 | Accuracy | Log loss | Brier |
+|------------------------|----------|----------|-------|
+| **Model**              | **0.675**| **0.606**|**0.209**|
+| Always pick home team  | 0.550    | 0.688    | 0.248 |
+| Better record so far   | 0.653    | -        | -     |
+| Coin flip              | 0.500    | 0.693    | 0.250 |
 
-## 2. Empirical Validation Results & Hyperparameter Tuning
+Best settings (chosen on 2023-24): decay = 0.95 per week (a game's weight halves about every 13.5 weeks),
+strength of schedule = on, learned home-court edge = 1.76 points.
 
-To establish true mathematical validity and prevent over-optimism or data leakage, the pipeline enforces a strict **chronological 80/20 train/test split**. The model builds its team profiles completely on historical timelines before evaluating accuracy on unobserved future contests.
+**Tuning (2023-24 log loss, lower is better):**
+| Decay | 0.80 | 0.85 | 0.90 | 0.92 | 0.95 | 0.98 | 1.00 (no recency) |
+|-------|------|------|------|------|------|------|-------------------|
+| Without SoS | 0.6275 | 0.6242 | 0.6177 | 0.6143 | 0.6105 | 0.6115 | 0.6170 |
+| With SoS    | 0.6210 | 0.6181 | 0.6141 | 0.6120 | **0.6095** | 0.6110 | 0.6168 |
 
->  **Hyperparameter Custom Tuning Note:** During experimental cycles, I tweaked the recency decay factor to perfection. Moving the factor from the standard baseline of `0.85` up to a refined `0.92` dramatically expanded the model's predictive memory window. This allows the system to retain crucial structural context regarding a team's foundational talent level without overreacting to isolated, short-term noise. Coupled with reducing `HOME_ADVANTAGE` to a modern `2.5` scale and implementing `scikit-learn` parameter matching, the model achieved a massive performance leap.
+**Calibration:** predictions grouped into 10% buckets, compared with how often the home team actually won.
+Dots near the dashed line mean the probabilities can be trusted. For example, in games the model
+gave the home team about 75%, the home team won 76.1% of the time (398 games).
 
-### Chronological Back-Test Performance Spectrum (6,129 Held-Out Games)
-* **Random Selection Baseline:** Log-Loss: `0.6931` | Win Accuracy: `50.00%`
-* **Hand-Tuned Initial Pipeline (Decay 0.85):** Log-Loss: `0.5985` | Win Accuracy: `67.24%`
-* **Machine Learning + SoS Optimized Model (Decay 0.92):** Log-Loss: **`0.5692`** | Win Accuracy: **`69.45%`**
+![Calibration](results/calibration.png)
 
-### Calibration Metrics Analysis
-Probability distributions match real-world frequency outcomes. Following probability binning diagnostics, games assigned an expected win clip within our $70\%$ probability bucket yielded an empirical, real-world win conversion rate of **$71.4\%$**, confirming predictive reliability.
+## What I learned
+[2-4 sentences in your own words: did recency help? did SoS help? where is the model weakest? what surprised you?]
 
----
+## Limitations
+- Ignores injuries, rest days, and trades, so it reacts to them only after they show up in results.
+- Blowouts count fully even when starters sat out the fourth quarter.
+- Early-season ratings lean on last season's games.
 
-## 3. Installation & Operational Deployment
+## Next steps
+- Cap blowout margins and test whether that improves log loss
+- Add rest days / back-to-backs as a second feature
+- Compare against betting-market probabilities
 
-### Step 1: Environment Isolation
-Initialize your local environment containment shell to avoid global dependency cross-contamination:
-```powershell
-python -m venv .venv
-# Activate on Windows:
-.venv\Scripts\Activate.ps1
+## Live 2026-27 season tracking
+Weekly picks are committed before tip-off in [`predictions/log.csv`](predictions/log.csv).
+Running record: [update monthly]
+
+## Project structure
+```
+src/data.py       load Kaggle data -> one row per game
+src/model.py      recency-weighted ratings, strength of schedule, win probability
+src/backtest.py   tuning, walk-forward test, baselines, calibration chart
+src/predict.py    live picks and scoring for the current season
+results/          metrics, tuning table, calibration chart
+predictions/      live 2026-27 picks
+```
+
+## How to run
+```
+pip install -r requirements.txt
+python src/backtest.py --tune 2024 --test 2025 2026
+python src/predict.py picks     # before games: reads data/upcoming.csv
+python src/predict.py score     # after games: running accuracy
+```
+
+*Built by Aarav Sandip.*
