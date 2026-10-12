@@ -2,6 +2,7 @@
 import numpy as np
 import pandas as pd
 
+MARGIN_CAP = 20  # set to None to turn the cap off
 
 def team_ratings(games, as_of, decay=0.92, sos=True):
     """Rate every team using ONLY games played before `as_of`.
@@ -20,6 +21,8 @@ def team_ratings(games, as_of, decay=0.92, sos=True):
         "margin": pd.concat([past["margin"], -past["margin"]]),
         "date": pd.concat([past["date"], past["date"]]),
     })
+    if MARGIN_CAP is not None:
+        side["margin"] = side["margin"].clip(lower=-MARGIN_CAP, upper=MARGIN_CAP)
     weeks_ago = (as_of - side["date"]).dt.days / 7.0
     side["w"] = decay ** weeks_ago
 
